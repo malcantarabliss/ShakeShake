@@ -12,6 +12,7 @@
 		8C0553DE296DCF4500242EE7 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C0553DD296DCF4500242EE7 /* ViewController.swift */; };
 		8C0553E3296DCF4600242EE7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C0553E2296DCF4600242EE7 /* Assets.xcassets */; };
 		8C0553E6296DCF4600242EE7 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C0553E4296DCF4600242EE7 /* LaunchScreen.storyboard */; };
+		8CC7D5F6296ECF4A00BCA540 /* FireworksViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC7D5F5296ECF4A00BCA540 /* FireworksViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +23,7 @@
 		8C0553E2296DCF4600242EE7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8C0553E5296DCF4600242EE7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8C0553E7296DCF4600242EE7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8CC7D5F5296ECF4A00BCA540 /* FireworksViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FireworksViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +62,7 @@
 				8C0553E2296DCF4600242EE7 /* Assets.xcassets */,
 				8C0553E4296DCF4600242EE7 /* LaunchScreen.storyboard */,
 				8C0553E7296DCF4600242EE7 /* Info.plist */,
+				8CC7D5F5296ECF4A00BCA540 /* FireworksViewController.swift */,
 			);
 			path = ShakeShake;
 			sourceTree = "<group>";
@@ -137,6 +140,7 @@
 				8C0553DE296DCF4500242EE7 /* ViewController.swift in Sources */,
 				8C0553DA296DCF4400242EE7 /* AppDelegate.swift in Sources */,
 				8C0553DC296DCF4500242EE7 /* SceneDelegate.swift in Sources */,
+				8CC7D5F6296ECF4A00BCA540 /* FireworksViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
