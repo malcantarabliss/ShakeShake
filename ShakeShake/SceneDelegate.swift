@@ -19,9 +19,9 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         window = UIWindow(frame: windowScene.coordinateSpace.bounds)
         window?.windowScene = windowScene
 //        let vc = ViewController()
-//        let navVC = UINavigationController(rootViewController: vc)
-        let fireworksVC = FireworksViewController()
-        let navVC = UINavigationController(rootViewController: fireworksVC)
+//        let vc = FireworksViewController()
+        let vc = MovingDropViewController()
+        let navVC = UINavigationController(rootViewController: vc)
         window?.rootViewController = navVC
         window?.makeKeyAndVisible()
     }

@@ -35,6 +35,7 @@ class FireworksViewController: UIViewController, UICollisionBehaviorDelegate {
     var parentSpeed: UIDynamicItemBehavior!
     var gravityDrag: UIFieldBehavior!
     var gravityMultiplier: CGFloat { 0.25 }
+    var frictionMultiplier: CGFloat { 0.8 }
     var aggregateBehavior: UIDynamicBehavior!
 
     var startBoundingBoxHeight: CGFloat { view.bounds.height * 0.475 }
@@ -88,15 +89,15 @@ class FireworksViewController: UIViewController, UICollisionBehaviorDelegate {
         parentSpeed = UIDynamicItemBehavior(items: fireworksViews)
         parentSpeed.items.forEach { item in
             parentSpeed.addLinearVelocity(.init(x: CGFloat.random(in: -250 ..< 250),
-                                                y: CGFloat.random(in: -2500 ..< -1250) ), for: item)
+                                                y: CGFloat.random(in: -5000 ..< -4750) ), for: item)
         }
 
-        gravityDrag = UIFieldBehavior.field(evaluationBlock: { [weak self, gravityMultiplier] field, position, velocity, mass, charge, deltaTime in
+        gravityDrag = UIFieldBehavior.field(evaluationBlock: { [weak self, gravityMultiplier, frictionMultiplier] field, position, velocity, mass, charge, deltaTime in
             guard let self = self else { return .zero }
             let dx = position.x < 0 || position.x > self.view.bounds.width ? 0 : -velocity.dx * mass
             let vector: CGVector = .init(
                 dx: dx,
-                dy: (-velocity.dy * 0.2) + gravityMultiplier + mass
+                dy: (-velocity.dy * frictionMultiplier) + gravityMultiplier + mass
             )
             return vector
         })
