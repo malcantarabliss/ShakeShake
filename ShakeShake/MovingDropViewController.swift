@@ -29,6 +29,16 @@ enum Direction {
     case unknown
 }
 
+class BigDrop: UIView {
+    override var collisionBoundingPath: UIBezierPath {
+        .init(rect: self.bounds)
+    }
+
+    override var collisionBoundsType: UIDynamicItemCollisionBoundsType {
+        .rectangle
+    }
+}
+
 class MovingDropViewController: UIViewController {
     private var observer: NSKeyValueObservation?
 
@@ -41,7 +51,7 @@ class MovingDropViewController: UIViewController {
     var drag: UIFieldBehavior!
 
     var shakeButton = UIButton()
-    var drop: UIView!
+    var drop: BigDrop!
     var itemList: [UIView] = []
     var initialAngleDirection: CGFloat { .pi / 3 } // rightDown
     lazy var currentAngleDirection: CGFloat = initialAngleDirection
@@ -51,7 +61,7 @@ class MovingDropViewController: UIViewController {
 
     var itemsCount: Int { 10 }
     var sizeIncrement: CGFloat {
-        (view.bounds.width - 180) / CGFloat(itemsCount)
+        (view.bounds.width - drop.bounds.width - 28) / CGFloat(itemsCount)
     }
 
 //    private var collectionView: UICollectionView!
@@ -64,6 +74,7 @@ class MovingDropViewController: UIViewController {
         setupDrop()
         setupAnimation()
         setupShakeButton()
+        view.backgroundColor = .white
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -75,6 +86,39 @@ class MovingDropViewController: UIViewController {
 //        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
 //            self.finishAnimation()
 //        }
+    }
+
+    override func viewWillLayoutSubviews() {
+        super.viewWillLayoutSubviews()
+        
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+//        self.animator.updateItem(usingCurrentState: self.drop)
+    }
+
+    func updateBoundaries() {
+        let side = max(0, (drop.bounds.width / 2) - 60)
+        let vertical = max(0, (drop.bounds.height / 2) - 60)
+        func doUpdate() {
+            collisionDrop.removeAllBoundaries()
+            collisionDrop.addBoundary(withIdentifier: NSString(string: "top"),
+                                      from: .init(x: 0 + side, y: 0 + vertical),
+                                      to: .init(x: view.bounds.maxX - side, y: 0 + vertical))
+            collisionDrop.addBoundary(withIdentifier: NSString(string: "left"),
+                                      from: .init(x: 0 + side, y: 0 + vertical),
+                                      to: .init(x: 0 + side, y: view.bounds.maxY - vertical))
+            collisionDrop.addBoundary(withIdentifier: NSString(string: "bottom"),
+                                      from: .init(x: 0 + side, y: view.bounds.maxY - vertical),
+                                      to: .init(x: view.bounds.maxX - side, y: view.bounds.maxY - vertical))
+            collisionDrop.addBoundary(withIdentifier: NSString(string: "right"),
+                                      from: .init(x: view.bounds.maxX - side, y: 0 + vertical),
+                                      to: .init(x: view.bounds.maxX - side, y: view.bounds.maxY - vertical))
+        }
+        DispatchQueue.main.async {
+            doUpdate()
+        }
     }
 
     func setupShakeButton() {
@@ -109,20 +153,41 @@ class MovingDropViewController: UIViewController {
     }
 
     func setupDrop() {
-        drop = UIView(frame: CGRect(x: view.center.x, y: view.center.y, width: 140, height: 140))
+        drop = BigDrop(frame: CGRect(x: view.center.x, y: view.center.y, width: 120, height: 120))
         drop.backgroundColor = .red
         view.addSubview(drop)
         observer = drop.observe(\.center, options: [.new], changeHandler: { view, value in
             self.itemList.forEach { view in
                 if view.frame.intersects(self.drop.frame) {
+//                    let currentTransform = self.drop.transform.scaledBy(x: 2, y: 2)
+//                    self.drop.transform = .init(scaleX: self.drop.transform.a + 1, y: self.drop.transform.d + 1)
+                    self.drop.bounds = .init(x: self.drop.bounds.origin.x,
+                                             y: self.drop.bounds.origin.y,
+                                             width: self.drop.bounds.width + self.sizeIncrement,
+                                             height: self.drop.bounds.height + self.sizeIncrement)
+                    self.updateBoundaries()
+//                    self.animator.updateItem(usingCurrentState: self.drop)
+//                    self.updateSize()
+//                    self.aggregateBehavior.removeChildBehavior(self.collisionDrop)
+//                    self.collisionDrop.addItem(self.drop)
+//                    self.aggregateBehavior.addChildBehavior(self.collisionDrop)
                     UIView.animate(withDuration: 0.1, delay: 0, options: [.beginFromCurrentState], animations: {
-                        self.drop.bounds = .init(x: self.drop.bounds.origin.x,
-                                                 y: self.drop.bounds.origin.y,
-                                                 width: self.drop.bounds.width + self.sizeIncrement,
-                                                 height: self.drop.bounds.height + self.sizeIncrement)
+//                        self.drop.bounds = .init(x: self.drop.bounds.origin.x,
+//                                                 y: self.drop.bounds.origin.y,
+//                                                 width: self.drop.bounds.width + 16,
+//                                                 height: self.drop.bounds.height + 16)
                     }, completion: { _ in
+//                        self.animator.removeBehavior(self.collisionDrop)
+//                        self.animator.removeBehavior(self.customField)
+//                        self.animator.removeBehavior(self.friction)
+//                        self.animator.removeBehavior(self.push)
+//                        self.animator.updateItem(usingCurrentState: self.drop)
+//                        self.animator.addBehavior(self.collisionDrop)
+//                        self.animator.addBehavior(self.customField)
+//                        self.animator.addBehavior(self.friction)
+//                        self.animator.addBehavior(self.push)
 //                        self.collisionDrop.removeItem(self.drop)
-                        self.collisionDrop.addItem(self.drop)
+//                        self.collisionDrop.addItem(self.drop)
                     })
                     view.removeFromSuperview()
                     self.itemList.removeAll(where: { $0 == view })
@@ -155,38 +220,27 @@ class MovingDropViewController: UIViewController {
 //        registerCells()
 //    }
 
-    func setupAnimation() {
-        // MARK: - Collision
-
+    func setupCollision() {
         collisionDrop = UICollisionBehavior(items: [drop])
-        collisionDrop.collisionMode = .boundaries
+        collisionDrop.collisionMode = .everything
         collisionDrop.collisionDelegate = self
 //        collisionDrop.translatesReferenceBoundsIntoBoundary = true
         // Need to setup boundaries manually to detect them in delegate
-        collisionDrop.addBoundary(withIdentifier: NSString(string: "top"),
-                                  from: view.bounds.origin,
-                                  to: .init(x: view.bounds.maxX, y: 0))
-        collisionDrop.addBoundary(withIdentifier: NSString(string: "left"),
-                                  from: view.bounds.origin,
-                                  to: .init(x: 0, y: view.bounds.maxY))
-        collisionDrop.addBoundary(withIdentifier: NSString(string: "bottom"),
-                                  from: .init(x: 0, y: view.bounds.maxY),
-                                  to: .init(x: view.bounds.maxX, y: view.bounds.maxY))
-        collisionDrop.addBoundary(withIdentifier: NSString(string: "right"),
-                                  from: .init(x: view.bounds.maxX, y: 0),
-                                  to: .init(x: view.bounds.maxX, y: view.bounds.maxY))
+        updateBoundaries()
+    }
 
+    func setupFriction() {
         friction = UIDynamicItemBehavior(items: [drop])
         friction.resistance = 0
         friction.friction = 0
         friction.elasticity = 1
+    }
 
-        // MARK: - Speed
-
+    func setupPush() {
         push = UIPushBehavior(items: [drop], mode: .instantaneous)
+    }
 
-        // MARK: - Drag
-
+    func setupDrag() {
         drag = UIFieldBehavior.dragField()
         drag.addItem(drop)
         drag.strength = 0.1
@@ -202,21 +256,57 @@ class MovingDropViewController: UIViewController {
         })
         customField.addItem(drop)
 
-        aggregateBehavior = UIDynamicBehavior()
-        aggregateBehavior.addChildBehavior(collisionDrop)
-        aggregateBehavior.addChildBehavior(push)
-        aggregateBehavior.addChildBehavior(friction)
-//        aggregateBehavior.addChildBehavior(drag)
-        aggregateBehavior.addChildBehavior(customField)
-//        customField.addChildBehavior(drag)
+    }
+
+    func updateSize() {
+//        aggregateBehavior.removeChildBehavior(collisionDrop)
+//        aggregateBehavior.removeChildBehavior(push)
+//        aggregateBehavior.removeChildBehavior(friction)
+////        aggregateBehavior.addChildBehavior(drag)
+//        aggregateBehavior.removeChildBehavior(customField)
+//        animator.removeBehavior(aggregateBehavior)
+//        animator.updateItem(usingCurrentState: drop)
+//        animator.addBehavior(aggregateBehavior)
+//        setupCollision()
+//        setupPush()
+//        setupFriction()
+//        setupDrag()
+    }
+
+    func setupAnimation() {
+        // MARK: - Collision
+
+        setupCollision()
+
+        setupFriction()
+
+        // MARK: - Speed
+
+        setupPush()
+
+        // MARK: - Drag
+
+        setupDrag()
+
+//        aggregateBehavior = UIDynamicBehavior()
+//        aggregateBehavior.addChildBehavior(collisionDrop)
+//        aggregateBehavior.addChildBehavior(push)
+//        aggregateBehavior.addChildBehavior(friction)
+////        aggregateBehavior.addChildBehavior(drag)
+//        aggregateBehavior.addChildBehavior(customField)
+
+        animator.addBehavior(collisionDrop)
+        animator.addBehavior(push)
+        animator.addBehavior(friction)
+        animator.addBehavior(customField)
     }
 
     var customField: UIFieldBehavior!
 
     func animate() {
-        animator.addBehavior(aggregateBehavior)
+//        animator.addBehavior(aggregateBehavior)
         currentAngle = currentAngleDirection
-        push.setAngle(currentAngleDirection, magnitude: 2)
+        push.setAngle(currentAngleDirection, magnitude: 5)
         basePushDirection = .init(dx: push.pushDirection.dx, dy: push.pushDirection.dy)
         pushDirection = push.pushDirection
     }
@@ -271,9 +361,11 @@ class MovingDropViewController: UIViewController {
     }
 
     func pushAgain(inBaseDirection: Bool? = nil, accel: CGFloat = 1) {
-        aggregateBehavior.removeChildBehavior(push)
+//        aggregateBehavior.removeChildBehavior(push)
+        animator.removeBehavior(push)
         push = UIPushBehavior(items: [drop], mode: .instantaneous)
-        aggregateBehavior.addChildBehavior(push)
+        animator.addBehavior(push)
+//        aggregateBehavior.addChildBehavior(push)
         let helperPush = UIPushBehavior(items: [drop], mode: .instantaneous)
         helperPush.setAngle(currentAngle, magnitude: 1)
         if inBaseDirection == true {
