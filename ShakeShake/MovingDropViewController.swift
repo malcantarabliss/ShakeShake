@@ -8,25 +8,109 @@
 import Foundation
 import UIKit
 
-func vectorDirection(for pushDirection: CGVector) -> Direction {
-    if pushDirection.dx > 0 && pushDirection.dy > 0 { // right and down
-        return .rightDown
-    } else if pushDirection.dx > 0 && pushDirection.dy < 0 { // right and up
-        return .rightUp
-    } else if pushDirection.dx < 0 && pushDirection.dy > 0 { // left and down
-        return .leftDown
-    } else if pushDirection.dx < 0 && pushDirection.dy < 0 { // left and up
-        return .leftUp
-    }
-    return .unknown
-}
 
-enum Direction {
+
+enum DropDirection {
+    case up
+    case down
+    case left
+    case right
     case rightDown
     case rightUp
     case leftDown
     case leftUp
+    case none
     case unknown
+
+    init(with direction: CGVector) {
+        self = Self.vectorDirection(for: direction)
+    }
+
+    init(for angle: CGFloat) {
+        if angle == 0 || angle == .pi*2 {
+            self = .right
+        } else if angle > 0 && angle < .pi/2{
+            self = .rightDown
+        } else if angle == .pi/2 {
+            self = .down
+        } else if angle > .pi/2 && angle < .pi {
+            self = .leftDown
+        } else if angle == .pi {
+            self = .left
+        } else if angle > .pi && angle < .pi*1.5 {
+            self = .leftUp
+        } else if angle == .pi*1.5 {
+            self = .up
+        } else if angle > .pi*1.5 && angle < .pi*2 {
+            self = .rightUp
+        } else {
+            self = .none
+        }
+    }
+
+    func getAngle(with initialAngle: CGFloat) -> CGFloat {
+        switch self {
+        case .up:
+            return -.pi / 2
+        case .down:
+            return .pi / 2
+        case .left:
+            return .pi
+        case .right:
+            return 0
+        case .rightDown:
+            return initialAngle
+        case .rightUp:
+            return -initialAngle
+        case .leftDown:
+            return .pi - initialAngle
+        case .leftUp:
+            return .pi + initialAngle
+        case .none:
+            return 0
+        case .unknown:
+            return .leastNormalMagnitude
+        }
+    }
+
+    static func vectorDirection(for pushDirection: CGVector) -> DropDirection {
+        if pushDirection.dx > 0 && pushDirection.dy > 0 {
+            return .rightDown
+        } else if pushDirection.dx > 0 && pushDirection.dy < 0 {
+            return .rightUp
+        } else if pushDirection.dx < 0 && pushDirection.dy > 0 {
+            return .leftDown
+        } else if pushDirection.dx < 0 && pushDirection.dy < 0 {
+            return .leftUp
+        } else if pushDirection.dx == 0 && pushDirection.dy < 0 {
+            return .up
+        } else if pushDirection.dx == 0 && pushDirection.dy > 0 {
+            return .down
+        } else if pushDirection.dx < 0 && pushDirection.dy == 0 {
+            return .left
+        } else if pushDirection.dx > 0 && pushDirection.dy == 0 {
+            return .right
+        } else if pushDirection.dx == 0 && pushDirection.dy == 0 {
+            return .none
+        }
+        return .unknown
+    }
+}
+
+enum Boundary: String {
+    case top
+    case bottom
+    case left
+    case right
+    case unknown
+
+    init(nsCopying: NSCopying?) {
+        guard let strValue = nsCopying as? String else {
+            self = .unknown
+            return
+        }
+        self = .init(rawValue: strValue) ?? .unknown
+    }
 }
 
 class BigDrop: UIView {
@@ -53,28 +137,33 @@ class MovingDropViewController: UIViewController {
     var shakeButton = UIButton()
     var drop: BigDrop!
     var itemList: [UIView] = []
-    var initialAngleDirection: CGFloat { .pi / 3 } // rightDown
-    lazy var currentAngleDirection: CGFloat = initialAngleDirection
-    var basePushDirection: CGVector = .zero
-    var currentAngle: CGFloat = .zero
-    var pushDirection: CGVector = .zero
 
-    var itemsCount: Int { 10 }
-    var sizeIncrement: CGFloat {
-        (view.bounds.width - drop.bounds.width - 28) / CGFloat(itemsCount)
+    var initialAngle: CGFloat { .pi / 3 }
+    var initialDirection: DropDirection = .unknown
+
+    var currentPushDirection: CGVector = .zero
+    var currentDirection: DropDirection = .unknown
+    var currentAngle: CGFloat {
+        currentDirection.getAngle(with: initialAngle)
     }
 
-//    private var collectionView: UICollectionView!
+    var initialSize: CGFloat { 120 }
+    var itemsCount: Int { 100 }
+    var dragFactor: CGFloat { 0.5 }
+    var endPadding: CGFloat { 40 }
+    var endSize: CGFloat? { 280 }
+    var currentMass: CGFloat { drop.bounds.height / initialSize }
+    lazy var sizeIncrement: CGFloat = ((endSize ?? view.bounds.width) - drop.bounds.width - endPadding*2) / CGFloat(itemsCount)
 
     override func viewDidLoad() {
         super.viewDidLoad()
         animator = UIDynamicAnimator(referenceView: view)
-//        setupCollectionView()
         setupDroplets()
         setupDrop()
         setupAnimation()
         setupShakeButton()
         view.backgroundColor = .white
+        randomizeAngle()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -82,37 +171,23 @@ class MovingDropViewController: UIViewController {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
             self.animate()
         }
-
-//        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
-//            self.finishAnimation()
-//        }
-    }
-
-    override func viewWillLayoutSubviews() {
-        super.viewWillLayoutSubviews()
-        
-    }
-
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-//        self.animator.updateItem(usingCurrentState: self.drop)
     }
 
     func updateBoundaries() {
-        let side = max(0, (drop.bounds.width / 2) - 60)
-        let vertical = max(0, (drop.bounds.height / 2) - 60)
+        let side = max(0, (drop.bounds.width / 2) - (initialSize / 2))
+        let vertical = max(0, (drop.bounds.height / 2) - (initialSize / 2))
         func doUpdate() {
             collisionDrop.removeAllBoundaries()
-            collisionDrop.addBoundary(withIdentifier: NSString(string: "top"),
+            collisionDrop.addBoundary(withIdentifier: NSString(string: Boundary.top.rawValue),
                                       from: .init(x: 0 + side, y: 0 + vertical),
                                       to: .init(x: view.bounds.maxX - side, y: 0 + vertical))
-            collisionDrop.addBoundary(withIdentifier: NSString(string: "left"),
+            collisionDrop.addBoundary(withIdentifier: NSString(string: Boundary.left.rawValue),
                                       from: .init(x: 0 + side, y: 0 + vertical),
                                       to: .init(x: 0 + side, y: view.bounds.maxY - vertical))
-            collisionDrop.addBoundary(withIdentifier: NSString(string: "bottom"),
+            collisionDrop.addBoundary(withIdentifier: NSString(string: Boundary.bottom.rawValue),
                                       from: .init(x: 0 + side, y: view.bounds.maxY - vertical),
                                       to: .init(x: view.bounds.maxX - side, y: view.bounds.maxY - vertical))
-            collisionDrop.addBoundary(withIdentifier: NSString(string: "right"),
+            collisionDrop.addBoundary(withIdentifier: NSString(string: Boundary.right.rawValue),
                                       from: .init(x: view.bounds.maxX - side, y: 0 + vertical),
                                       to: .init(x: view.bounds.maxX - side, y: view.bounds.maxY - vertical))
         }
@@ -121,9 +196,110 @@ class MovingDropViewController: UIViewController {
         }
     }
 
+    func animate() {
+        push.setAngle(initialDirection.getAngle(with: initialAngle), magnitude: 5)
+        currentPushDirection = .init(dx: push.pushDirection.dx, dy: push.pushDirection.dy)
+        pushAgain()
+    }
+
+    func finishAnimation() {
+        animator.removeAllBehaviors()
+        let snapBehavior = UISnapBehavior(item: drop, snapTo: view.center)
+        snapBehavior.damping = 0.5
+        animator.addBehavior(snapBehavior)
+    }
+
+    func randomizeAngle() {
+        let list: [DropDirection] = [
+            .rightDown,
+            .leftDown,
+            .rightUp,
+            .leftUp
+        ]
+        initialDirection = list.randomElement() ?? .rightUp
+        let randomized = currentAngle
+        print("""
+        ------
+        radians = \(randomized)
+        degress = \(randomized * (180/CGFloat.pi))
+        ------
+        """)
+    }
+
+    func calculateNewAngle(collidedIn boundary: Boundary, for direction: CGVector? = nil) -> CGFloat {
+        // 0 rads => right
+        // .pi / 2 => down
+        // .pi => left
+        // 3 * .pi / 2 => up
+        let currentDirection = DropDirection.vectorDirection(for: direction ?? currentPushDirection)
+        var direction: DropDirection = .unknown
+        switch boundary {
+        case .top:
+            switch currentDirection {
+            case .leftUp:
+                direction = .leftDown
+            case .rightUp:
+                direction = .rightDown
+            default: break
+            }
+        case .bottom:
+            switch currentDirection {
+            case .leftDown:
+                direction = .leftUp
+            case .rightDown:
+                direction = .rightUp
+            default: break
+            }
+        case .left:
+            switch currentDirection {
+            case .leftUp:
+                direction = .rightUp
+            case .leftDown:
+                direction = .rightDown
+            default: break
+            }
+        case .right:
+            switch currentDirection {
+            case .rightUp:
+                direction = .leftUp
+            case .rightDown:
+                direction = .leftDown
+            default: break
+            }
+        case .unknown:
+            break
+        }
+        self.currentDirection = direction
+        return currentAngle
+    }
+
+    func pushAgain() {
+        animator.removeBehavior(push)
+        push = UIPushBehavior(items: [drop], mode: .instantaneous)
+        animator.addBehavior(push)
+
+        currentDirection = DropDirection(with: currentPushDirection)
+        let helperPush = UIPushBehavior(items: [drop], mode: .instantaneous)
+        helperPush.setAngle(currentAngle, magnitude: 5)
+        currentPushDirection = helperPush.pushDirection
+        push.pushDirection = helperPush.pushDirection
+    }
+}
+
+extension MovingDropViewController: UICollisionBehaviorDelegate {
+    func collisionBehavior(_ behavior: UICollisionBehavior, beganContactFor item: UIDynamicItem, withBoundaryIdentifier identifier: NSCopying?, at p: CGPoint) {
+        print("collided with __\(Boundary(nsCopying: identifier))__")
+    }
+
+    func collisionBehavior(_ behavior: UICollisionBehavior, endedContactFor item: UIDynamicItem, withBoundaryIdentifier identifier: NSCopying?) {
+        print("\(#function) - \(item)")
+    }
+}
+
+extension MovingDropViewController {
     func setupShakeButton() {
         shakeButton = UIButton(type: .system, primaryAction: .init(handler: { action in
-            self.pushAgain(inBaseDirection: true, accel: 1.1)
+            self.pushAgain()
         }))
         shakeButton.setTitle("SHAKE", for: .normal)
         view.addSubview(shakeButton)
@@ -140,8 +316,8 @@ class MovingDropViewController: UIViewController {
             let dropletView = UIView(frame: .zero)
             dropletView.backgroundColor = UIColor.randomColor()
             let randomValue = CGFloat.random(in: 8...24)
-            let randomX = CGFloat.random(in: 0.2...1.8)
-            let randomY = CGFloat.random(in: 0.2...1.8)
+            let randomX = CGFloat.random(in: 0.5...1.5)
+            let randomY = CGFloat.random(in: 0.5...1.5)
             view.addSubview(dropletView)
             dropletView.translatesAutoresizingMaskIntoConstraints = false
             dropletView.heightAnchor.constraint(equalToConstant: randomValue).isActive = true
@@ -153,72 +329,28 @@ class MovingDropViewController: UIViewController {
     }
 
     func setupDrop() {
-        drop = BigDrop(frame: CGRect(x: view.center.x, y: view.center.y, width: 120, height: 120))
+        drop = BigDrop(frame: CGRect(x: view.center.x, y: view.center.y, width: initialSize, height: initialSize))
         drop.backgroundColor = .red
         view.addSubview(drop)
         observer = drop.observe(\.center, options: [.new], changeHandler: { view, value in
             self.itemList.forEach { view in
                 if view.frame.intersects(self.drop.frame) {
-//                    let currentTransform = self.drop.transform.scaledBy(x: 2, y: 2)
-//                    self.drop.transform = .init(scaleX: self.drop.transform.a + 1, y: self.drop.transform.d + 1)
-                    self.drop.bounds = .init(x: self.drop.bounds.origin.x,
-                                             y: self.drop.bounds.origin.y,
-                                             width: self.drop.bounds.width + self.sizeIncrement,
-                                             height: self.drop.bounds.height + self.sizeIncrement)
-                    self.updateBoundaries()
-//                    self.animator.updateItem(usingCurrentState: self.drop)
-//                    self.updateSize()
-//                    self.aggregateBehavior.removeChildBehavior(self.collisionDrop)
-//                    self.collisionDrop.addItem(self.drop)
-//                    self.aggregateBehavior.addChildBehavior(self.collisionDrop)
                     UIView.animate(withDuration: 0.1, delay: 0, options: [.beginFromCurrentState], animations: {
-//                        self.drop.bounds = .init(x: self.drop.bounds.origin.x,
-//                                                 y: self.drop.bounds.origin.y,
-//                                                 width: self.drop.bounds.width + 16,
-//                                                 height: self.drop.bounds.height + 16)
+                        self.drop.bounds = .init(x: self.drop.bounds.origin.x,
+                                                 y: self.drop.bounds.origin.y,
+                                                 width: self.drop.bounds.width + self.sizeIncrement,
+                                                 height: self.drop.bounds.height + self.sizeIncrement)
                     }, completion: { _ in
-//                        self.animator.removeBehavior(self.collisionDrop)
-//                        self.animator.removeBehavior(self.customField)
-//                        self.animator.removeBehavior(self.friction)
-//                        self.animator.removeBehavior(self.push)
-//                        self.animator.updateItem(usingCurrentState: self.drop)
-//                        self.animator.addBehavior(self.collisionDrop)
-//                        self.animator.addBehavior(self.customField)
-//                        self.animator.addBehavior(self.friction)
-//                        self.animator.addBehavior(self.push)
-//                        self.collisionDrop.removeItem(self.drop)
-//                        self.collisionDrop.addItem(self.drop)
+                        self.updateBoundaries()
                     })
                     view.removeFromSuperview()
                     self.itemList.removeAll(where: { $0 == view })
-//                    guard self.itemList.isEmpty else { return }
-//                    self.finishAnimation()
+                    guard self.itemList.isEmpty else { return }
+                    self.finishAnimation()
                 }
             }
         })
     }
-
-//    override func observeValue(forKeyPath keyPath: String?,
-//                                     of object: Any?,
-//                                     change: [NSKeyValueChangeKey : Any]?,
-//                                     context: UnsafeMutableRawPointer?) {
-//        detectNewFrame()
-//    }
-
-//    func setupCollectionView() {
-//        collectionView = UICollectionView(frame: .zero, collectionViewLayout: UICollectionViewFlowLayout())
-//        collectionView.dataSource = self
-//        collectionView.delegate = self
-//        view.addSubview(collectionView)
-//
-//        collectionView.translatesAutoresizingMaskIntoConstraints = false
-//        collectionView.topAnchor.constraint(equalTo: view.topAnchor).isActive = true
-//        collectionView.bottomAnchor.constraint(equalTo: view.bottomAnchor).isActive = true
-//        collectionView.leadingAnchor.constraint(equalTo: view.leadingAnchor).isActive = true
-//        collectionView.trailingAnchor.constraint(equalTo: view.trailingAnchor).isActive = true
-//
-//        registerCells()
-//    }
 
     func setupCollision() {
         collisionDrop = UICollisionBehavior(items: [drop])
@@ -241,42 +373,28 @@ class MovingDropViewController: UIViewController {
     }
 
     func setupDrag() {
-        drag = UIFieldBehavior.dragField()
-        drag.addItem(drop)
-        drag.strength = 0.1
-
-        let dragFactor = 1.5
-        customField = UIFieldBehavior.field(evaluationBlock: { field, position, velocity, mass, charge, deltaTime in
-            let contraryVector = CGVector(dx: velocity.dx * -1, dy: velocity.dy * -1)
+        let dragFactor = self.dragFactor
+        drag = UIFieldBehavior.field(evaluationBlock: { field, position, velocity, mass, charge, deltaTime in
+            let offset = (self.currentMass * 2)
+            let dragFactor = 1 + (dragFactor * offset)
+            let contraryVector = CGVector(dx: velocity.dx * -1,
+                                          dy: velocity.dy * -1)
+            self.currentPushDirection = velocity
+            self.currentDirection = DropDirection.vectorDirection(for: velocity)
             let xCalc = velocity.dx + (contraryVector.dx * dragFactor)
             let yCalc = velocity.dy + (contraryVector.dy * dragFactor)
             let finalVelocity = CGVector(dx: xCalc, dy: yCalc)
-            print("finalVelocity = \(finalVelocity)")
             return finalVelocity
         })
-        customField.addItem(drop)
-
-    }
-
-    func updateSize() {
-//        aggregateBehavior.removeChildBehavior(collisionDrop)
-//        aggregateBehavior.removeChildBehavior(push)
-//        aggregateBehavior.removeChildBehavior(friction)
-////        aggregateBehavior.addChildBehavior(drag)
-//        aggregateBehavior.removeChildBehavior(customField)
-//        animator.removeBehavior(aggregateBehavior)
-//        animator.updateItem(usingCurrentState: drop)
-//        animator.addBehavior(aggregateBehavior)
-//        setupCollision()
-//        setupPush()
-//        setupFriction()
-//        setupDrag()
+        drag.addItem(drop)
     }
 
     func setupAnimation() {
         // MARK: - Collision
 
         setupCollision()
+
+        // MARK: - Wall friction
 
         setupFriction()
 
@@ -288,135 +406,10 @@ class MovingDropViewController: UIViewController {
 
         setupDrag()
 
-//        aggregateBehavior = UIDynamicBehavior()
-//        aggregateBehavior.addChildBehavior(collisionDrop)
-//        aggregateBehavior.addChildBehavior(push)
-//        aggregateBehavior.addChildBehavior(friction)
-////        aggregateBehavior.addChildBehavior(drag)
-//        aggregateBehavior.addChildBehavior(customField)
-
         animator.addBehavior(collisionDrop)
         animator.addBehavior(push)
         animator.addBehavior(friction)
-        animator.addBehavior(customField)
+        animator.addBehavior(drag)
     }
 
-    var customField: UIFieldBehavior!
-
-    func animate() {
-//        animator.addBehavior(aggregateBehavior)
-        currentAngle = currentAngleDirection
-        push.setAngle(currentAngleDirection, magnitude: 5)
-        basePushDirection = .init(dx: push.pushDirection.dx, dy: push.pushDirection.dy)
-        pushDirection = push.pushDirection
-    }
-
-    func finishAnimation() {
-        print(#function)
-        animator.removeAllBehaviors()
-        let snapBehavior = UISnapBehavior(item: drop, snapTo: view.center)
-        snapBehavior.damping = 0.25
-        animator.addBehavior(snapBehavior)
-    }
-//
-    func calculateNewAngle(collidedIn boundary: String) -> CGFloat {
-        // 0 rads => right
-        // .pi / 2 => down
-        // .pi => left
-        // 3 * .pi / 2 => up
-        if boundary == "top" {
-            switch vectorDirection(for: basePushDirection) {
-            case .leftUp:
-                currentAngle = 2 * initialAngleDirection // go leftDown
-            case .rightUp:
-                currentAngle = initialAngleDirection // go rightDown
-            default: break
-            }
-        } else if boundary == "bottom" {
-            switch vectorDirection(for: basePushDirection) {
-            case .leftDown:
-                currentAngle = .pi + initialAngleDirection // go leftUp
-            case .rightDown:
-                currentAngle = -initialAngleDirection // go rightUp
-            default: break
-            }
-        } else if boundary == "left" {
-            switch vectorDirection(for: basePushDirection) {
-            case .leftUp:
-                currentAngle = -initialAngleDirection // go rightUp
-            case .leftDown:
-                currentAngle = initialAngleDirection // go rightDown
-            default: break
-            }
-        } else if boundary == "right" {
-            switch vectorDirection(for: basePushDirection) {
-            case .rightUp:
-                currentAngle = .pi + initialAngleDirection // go leftUp
-            case .rightDown:
-                currentAngle = 2 * initialAngleDirection // go leftDown
-            default: break
-            }
-        }
-        return currentAngle
-    }
-
-    func pushAgain(inBaseDirection: Bool? = nil, accel: CGFloat = 1) {
-//        aggregateBehavior.removeChildBehavior(push)
-        animator.removeBehavior(push)
-        push = UIPushBehavior(items: [drop], mode: .instantaneous)
-        animator.addBehavior(push)
-//        aggregateBehavior.addChildBehavior(push)
-        let helperPush = UIPushBehavior(items: [drop], mode: .instantaneous)
-        helperPush.setAngle(currentAngle, magnitude: 1)
-        if inBaseDirection == true {
-//            let accelDirection = CGVector(dx: (helperPush.pushDirection.dx + helperPush.pushDirection.dx) * accel,
-//                                          dy: (helperPush.pushDirection.dy + helperPush.pushDirection.dy) * accel)
-            let accelDirection = CGVector(dx: helperPush.pushDirection.dx,
-                                          dy: helperPush.pushDirection.dy)
-//            basePushDirection = accelDirection
-            print("accelDirection = \(accelDirection)")
-            push.pushDirection = accelDirection
-        } else {
-        }
-        print("direction = \(vectorDirection(for: basePushDirection))")
-    }
-
-    func getCurrentAngle() {
-        
-    }
-}
-
-extension MovingDropViewController: UICollisionBehaviorDelegate {
-    func collisionBehavior(_ behavior: UICollisionBehavior, beganContactFor item: UIDynamicItem, withBoundaryIdentifier identifier: NSCopying?, at p: CGPoint) {
-        print("collided with __\((identifier as? String) ?? "")__")
-        let boundary = (identifier as? String) ?? ""
-        let helperPush = UIPushBehavior(items: [drop], mode: .instantaneous)
-        helperPush.setAngle(calculateNewAngle(collidedIn: boundary), magnitude: 2)
-        let dx = helperPush.pushDirection.dx > 0 ? abs(basePushDirection.dx) : -abs(basePushDirection.dx)
-        let dy = helperPush.pushDirection.dy > 0 ? abs(basePushDirection.dy) : -abs(basePushDirection.dy)
-        basePushDirection = .init(dx: dx, dy: dy)
-        self.pushDirection = basePushDirection
-        if pushDirection.dx > 0 && pushDirection.dy > 0 { // right and down
-            print("going rightDown")
-        } else if pushDirection.dx > 0 && pushDirection.dy < 0 { // right and up
-            print("going rightUp")
-        } else if pushDirection.dx < 0 && pushDirection.dy > 0 { // left and down
-            print("going leftDown")
-        } else if pushDirection.dx < 0 && pushDirection.dy < 0 { // left and up
-            print("going leftUp")
-        }
-        
-        // To remove from line below
-//        aggregateBehavior.removeChildBehavior(push)
-//        push = UIPushBehavior(items: [drop], mode: .instantaneous)
-//        aggregateBehavior.addChildBehavior(push)
-//        push.pushDirection = helperPush.pushDirection
-        // To remove until line above
-        
-//        print("collided, new direction = \(nextDirection(for: basePushDirection))")
-    }
-
-    func collisionBehavior(_ behavior: UICollisionBehavior, endedContactFor item: UIDynamicItem, withBoundaryIdentifier identifier: NSCopying?) {
-//        print("\(#function) - \(item)")
-    }
 }
