@@ -8,8 +8,6 @@
 import Foundation
 import UIKit
 
-
-
 enum DropDirection {
     case up
     case down
@@ -155,6 +153,29 @@ class MovingDropViewController: UIViewController {
     var currentMass: CGFloat { drop.bounds.height / initialSize }
     lazy var sizeIncrement: CGFloat = ((endSize ?? view.bounds.width) - drop.bounds.width - endPadding*2) / CGFloat(itemsCount)
 
+    // MARK: - End Animation
+    var parentSpeed: UIDynamicItemBehavior!
+    var gravityDrag: UIFieldBehavior!
+    var pushList: [UIPushBehavior] = []
+    var gravityMultiplier: CGFloat { 1 }
+
+    var startBoundingBoxHeight: CGFloat { view.bounds.height * 0.475 }
+    var startBoundingBoxWidth: CGFloat { view.bounds.width * 0.475 }
+    var endBoundingBoxHeight: CGFloat { view.bounds.height * 0.525 }
+    var endBoundingBoxWidth: CGFloat { view.bounds.width * 0.525 }
+    var xRange: Range<CGFloat> { startBoundingBoxWidth..<endBoundingBoxWidth }
+    var yRange: Range<CGFloat> { startBoundingBoxHeight..<endBoundingBoxHeight }
+    var sizeRange: Range<CGFloat> { 12..<32 }
+    var fireworksQuantity: Int = 200
+    var fireworksViews = [UIView]()
+    var didRemovePushBehaviors = false
+
+    var containerView = UIView()
+    var topAnchorConstraint: NSLayoutConstraint!
+    var bottomAnchorConstraint: NSLayoutConstraint!
+    var leadingAnchorConstraint: NSLayoutConstraint!
+    var trailingAnchorConstraint: NSLayoutConstraint!
+
     override func viewDidLoad() {
         super.viewDidLoad()
         animator = UIDynamicAnimator(referenceView: view)
@@ -164,6 +185,7 @@ class MovingDropViewController: UIViewController {
         setupShakeButton()
         view.backgroundColor = .white
         randomizeAngle()
+        transitioningDelegate = self
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -207,6 +229,12 @@ class MovingDropViewController: UIViewController {
         let snapBehavior = UISnapBehavior(item: drop, snapTo: view.center)
         snapBehavior.damping = 0.5
         animator.addBehavior(snapBehavior)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+//            let vc = FireworksViewController()
+//            vc.modalPresentationStyle = .fullScreen
+//            self.present(vc, animated: true)
+            self.beginEndAnimation()
+        }
     }
 
     func randomizeAngle() {
@@ -224,53 +252,6 @@ class MovingDropViewController: UIViewController {
         degress = \(randomized * (180/CGFloat.pi))
         ------
         """)
-    }
-
-    func calculateNewAngle(collidedIn boundary: Boundary, for direction: CGVector? = nil) -> CGFloat {
-        // 0 rads => right
-        // .pi / 2 => down
-        // .pi => left
-        // 3 * .pi / 2 => up
-        let currentDirection = DropDirection.vectorDirection(for: direction ?? currentPushDirection)
-        var direction: DropDirection = .unknown
-        switch boundary {
-        case .top:
-            switch currentDirection {
-            case .leftUp:
-                direction = .leftDown
-            case .rightUp:
-                direction = .rightDown
-            default: break
-            }
-        case .bottom:
-            switch currentDirection {
-            case .leftDown:
-                direction = .leftUp
-            case .rightDown:
-                direction = .rightUp
-            default: break
-            }
-        case .left:
-            switch currentDirection {
-            case .leftUp:
-                direction = .rightUp
-            case .leftDown:
-                direction = .rightDown
-            default: break
-            }
-        case .right:
-            switch currentDirection {
-            case .rightUp:
-                direction = .leftUp
-            case .rightDown:
-                direction = .leftDown
-            default: break
-            }
-        case .unknown:
-            break
-        }
-        self.currentDirection = direction
-        return currentAngle
     }
 
     func pushAgain() {
@@ -412,4 +393,125 @@ extension MovingDropViewController {
         animator.addBehavior(drag)
     }
 
+}
+
+extension MovingDropViewController {
+    func animateEndDismiss() {
+        func updateConsts() {
+            NSLayoutConstraint.deactivate([
+                topAnchorConstraint,
+                bottomAnchorConstraint,
+                leadingAnchorConstraint,
+                trailingAnchorConstraint
+            ])
+
+            containerView.translatesAutoresizingMaskIntoConstraints = true
+            containerView.removeConstraints(containerView.constraints)
+//            topAnchorConstraint.constant = 1000
+//            bottomAnchorConstraint.constant = 100
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+//            updateConsts()
+            UIView.animate(withDuration: 1, delay: 0) {
+//                self.containerView.frame.origin.y += self.view.frame.height * 2
+//                self.fireworksViews.forEach { $0.alpha = 0 }
+                let vc = FakeSuccessViewController()
+                vc.transitioningDelegate = self
+                vc.modalPresentationStyle = .custom
+                self.present(vc, animated: true)
+//                self.view.layoutIfNeeded()
+            }
+        }
+    }
+    func setupEndParticlesContainerView() {
+        view.addSubview(containerView)
+        containerView.translatesAutoresizingMaskIntoConstraints = false
+        containerView.backgroundColor = .clear
+        topAnchorConstraint = containerView.topAnchor.constraint(equalTo: view.topAnchor)
+        bottomAnchorConstraint = containerView.bottomAnchor.constraint(equalTo: view.bottomAnchor)
+        leadingAnchorConstraint = containerView.leadingAnchor.constraint(equalTo: view.leadingAnchor)
+        trailingAnchorConstraint = containerView.trailingAnchor.constraint(equalTo: view.trailingAnchor)
+
+        NSLayoutConstraint.activate([
+            topAnchorConstraint,
+            bottomAnchorConstraint,
+            leadingAnchorConstraint,
+            trailingAnchorConstraint
+        ])
+    }
+    func setupEndParticles() {
+        for _ in 0..<fireworksQuantity {
+            let randomX = CGFloat.random(in: xRange)
+            let randomY = CGFloat.random(in: yRange)
+            let size = CGFloat.random(in: sizeRange)
+            let view = UIView(frame: CGRect(x: randomX, y: randomY, width: size, height: size))
+            view.backgroundColor = UIColor.randomColor()
+            view.alpha = 0
+            fireworksViews.append(view)
+        }
+        fireworksViews.forEach(containerView.addSubview)
+        UIView.animate(withDuration: 0.3, delay: 0, animations: { self.fireworksViews.forEach { $0.alpha = 1 } })
+    }
+
+    func beginEndAnimation() {
+        animator.removeAllBehaviors()
+        setupEndParticlesContainerView()
+        setupEndParticles()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            self.animateEnd()
+        }
+    }
+
+    func animateEnd() {
+        // MARK: - Speed
+
+        parentSpeed = UIDynamicItemBehavior(items: fireworksViews)
+        parentSpeed.items.forEach { item in
+            let randomXLower = CGFloat.random(in: -2000 ... -1500)
+            let randomXUpper = CGFloat.random(in: 1500 ... 2000)
+
+            let randomYLower = CGFloat.random(in: -7500 ... -2500)
+            let randomYUpper = CGFloat.random(in: 2500 ... 5000)
+            parentSpeed.addLinearVelocity(.init(x: CGFloat.random(in: randomXLower ..< randomXUpper),
+                                                y: CGFloat.random(in: randomYLower ..< randomYUpper)), for: item)
+            parentSpeed.addAngularVelocity(CGFloat.random(in: -10...10), for: item)
+        }
+
+        // MARK: - Push (if needed)
+//        setupPushes()
+//        fireworksViews
+//            .forEach { view in
+//                self.pushList.randomElement()?.addItem(view)
+//        }
+//
+
+        gravityDrag = UIFieldBehavior.field(evaluationBlock: { [weak self, gravityMultiplier] field, position, velocity, mass, charge, deltaTime in
+            guard let self = self else { return .zero }
+//            let mass = 0.1
+            if !self.didRemovePushBehaviors {
+//                self.push.forEach(self.animator.removeBehavior)
+                self.animator.removeBehavior(self.parentSpeed)
+                self.didRemovePushBehaviors = true
+            }
+            let contraryVector = CGVector(dx: velocity.dx * -1,
+                                          dy: velocity.dy * -1)
+            let gravity: CGFloat = 9.8 * gravityMultiplier
+            let vector: CGVector = .init(
+                dx: velocity.dx + contraryVector.dx*1.5,
+                dy: velocity.dy + (contraryVector.dy*1.5) + (mass*gravity)
+            )
+            return vector
+        })
+        fireworksViews.forEach(gravityDrag.addItem)
+
+        animator.addBehavior(gravityDrag)
+        animator.addBehavior(parentSpeed)
+
+        animateEndDismiss()
+
+//        pushList.forEach(aggregateBehavior.addChildBehavior)
+        // Cann see the forces applied, really cool
+//        animator.setValue(true, forKey: "debugEnabled")
+    }
 }

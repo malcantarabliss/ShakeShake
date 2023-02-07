@@ -13,7 +13,10 @@
 		8C0553E3296DCF4600242EE7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C0553E2296DCF4600242EE7 /* Assets.xcassets */; };
 		8C0553E6296DCF4600242EE7 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C0553E4296DCF4600242EE7 /* LaunchScreen.storyboard */; };
 		8C3D6A4C297545AC00123C69 /* MovingDropViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C3D6A4B297545AC00123C69 /* MovingDropViewController.swift */; };
+		8C5B513B29917E4A006D3F3C /* FireworksViewController2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C5B513A29917E4A006D3F3C /* FireworksViewController2.swift */; };
 		8CC7D5F6296ECF4A00BCA540 /* FireworksViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CC7D5F5296ECF4A00BCA540 /* FireworksViewController.swift */; };
+		8CD62F3C29925CBC00DB38CF /* FakeSuccessViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD62F3B29925CBC00DB38CF /* FakeSuccessViewController.swift */; };
+		8CD62F3E29925D1400DB38CF /* MovingDropViewController+AnimatedTransitioning.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8CD62F3D29925D1400DB38CF /* MovingDropViewController+AnimatedTransitioning.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,7 +28,10 @@
 		8C0553E5296DCF4600242EE7 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8C0553E7296DCF4600242EE7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8C3D6A4B297545AC00123C69 /* MovingDropViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MovingDropViewController.swift; sourceTree = "<group>"; };
+		8C5B513A29917E4A006D3F3C /* FireworksViewController2.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = FireworksViewController2.swift; sourceTree = "<group>"; };
 		8CC7D5F5296ECF4A00BCA540 /* FireworksViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FireworksViewController.swift; sourceTree = "<group>"; };
+		8CD62F3B29925CBC00DB38CF /* FakeSuccessViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeSuccessViewController.swift; sourceTree = "<group>"; };
+		8CD62F3D29925D1400DB38CF /* MovingDropViewController+AnimatedTransitioning.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MovingDropViewController+AnimatedTransitioning.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -65,7 +71,10 @@
 				8C0553E4296DCF4600242EE7 /* LaunchScreen.storyboard */,
 				8C0553E7296DCF4600242EE7 /* Info.plist */,
 				8CC7D5F5296ECF4A00BCA540 /* FireworksViewController.swift */,
+				8C5B513A29917E4A006D3F3C /* FireworksViewController2.swift */,
 				8C3D6A4B297545AC00123C69 /* MovingDropViewController.swift */,
+				8CD62F3D29925D1400DB38CF /* MovingDropViewController+AnimatedTransitioning.swift */,
+				8CD62F3B29925CBC00DB38CF /* FakeSuccessViewController.swift */,
 			);
 			path = ShakeShake;
 			sourceTree = "<group>";
@@ -140,10 +149,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8CD62F3C29925CBC00DB38CF /* FakeSuccessViewController.swift in Sources */,
 				8C0553DE296DCF4500242EE7 /* ViewController.swift in Sources */,
+				8CD62F3E29925D1400DB38CF /* MovingDropViewController+AnimatedTransitioning.swift in Sources */,
 				8C3D6A4C297545AC00123C69 /* MovingDropViewController.swift in Sources */,
 				8C0553DA296DCF4400242EE7 /* AppDelegate.swift in Sources */,
 				8C0553DC296DCF4500242EE7 /* SceneDelegate.swift in Sources */,
+				8C5B513B29917E4A006D3F3C /* FireworksViewController2.swift in Sources */,
 				8CC7D5F6296ECF4A00BCA540 /* FireworksViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
